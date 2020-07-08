@@ -7,10 +7,16 @@ on:
 jobs:
   build:
     name: Build
+    env:
+      TERM: xterm-256color
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
+        corefx: ['netcoreapp3.1']
+        netfx: ['net45']
+        project: ['KuduSync.NET/KuduSync.NET.csproj']
+        output: ['artifacts']
     steps:
       - name: Get the sources
         uses: actions/checkout@v2
@@ -25,9 +31,20 @@ jobs:
 
       - name: Build KuduSync.NET
         run: |
-          dotnet build
+          dotnet build -p:Configuration=Release
 
-      - name: Test
+      - name: Test Windows
         if: matrix.os == 'windows-latest'
         shell: cmd
         run: .\test.cmd
+
+      - name: Create NuGet Packages
+        shell: bash
+        run: |
+            dotnet pack ${{ matrix.project }} -p:TargetFramework=${{ matrix.netfx }} -p:TargetFrameworks=${{ matrix.netfx }} --output ${{ matrix.output }} \
+            && dotnet pack ${{ matrix.project }} -p:TargetFramework=${{ matrix.corefx }} -p:TargetFrameworks=${{ matrix.corefx }} --output ${{ matrix.output }}
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: nupkg
+          path: artifacts/*.nupkg
